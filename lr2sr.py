@@ -27,10 +27,11 @@ upsample_fac = 8
 in_channels = out_channels = 6
 model = models.G(in_channels,out_channels,upsample_fac)
 
-device = torch.device('cuda')
-torch.cuda.device(device)
+#device = torch.device('cuda')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#torch.cuda.device(device)
 
-state = torch.load(model_path, map_location=device)
+state = torch.load(model_path, map_location=torch.device('cpu'))
 
 model.load_state_dict(state['model'])
 print('load model state at epoch {}'.format(state['epoch']))
