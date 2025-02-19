@@ -20,10 +20,11 @@ def load_sr_positions(inpath):
     print(f"[INFO] Loaded positions with shape: {pos.shape}")
     return pos
 
-def visualize_sr_3d(inpath, box_size=100.0, sample_3d=64*64*64):
+def visualize_sr_3d(inpath, box_size=100.0, downsample_factor=64):
     """Visualize 3D positions of SR simulation data."""
     # Load positions from file
     pos = load_sr_positions(inpath)
+    sample_3d = downsample_factor**3
     
     # Basic data validation
     if pos.size == 0:
@@ -39,7 +40,7 @@ def visualize_sr_3d(inpath, box_size=100.0, sample_3d=64*64*64):
     print(f"  - Range Z: [{pos[:, 2].min():.2f}, {pos[:, 2].max():.2f}]")
     
     # Sample a subset of particles if specified
-    if sample_3d is not None:
+    if downsample_factor is not None:
         if sample_3d > pos.shape[0]:
             print(f"[WARNING] Requested sample size ({sample_3d}) larger than data size ({pos.shape[0]})")
             sample_3d = pos.shape[0]
@@ -54,7 +55,7 @@ def visualize_sr_3d(inpath, box_size=100.0, sample_3d=64*64*64):
     
     # Plot with error handling
     try:
-        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=1, alpha=0.3)
+        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=0.8, alpha=0.2)
     except Exception as e:
         print(f"[ERROR] Failed to create scatter plot: {str(e)}")
         raise
@@ -63,16 +64,19 @@ def visualize_sr_3d(inpath, box_size=100.0, sample_3d=64*64*64):
     ax.set_xlabel('X ')
     ax.set_ylabel('Y ')
     ax.set_zlabel('Z ')
-    ax.set_title('SR Simulation Particle Distribution')
+    ax.set_title('SR Simulation Particle Distribution with downsample factor = {}'.format(downsample_factor))
     
-    # Set axis limits based on data range
-    data_min = pos.min()
-    data_max = pos.max()
-    print(f"[INFO] Setting plot limits from {data_min:.2f} to {data_max:.2f}")
-    
-    ax.set_xlim(data_min, data_max)
-    ax.set_ylim(data_min, data_max)
-    ax.set_zlim(data_min, data_max)
+    # # Set axis limits based on data range
+    # data_min = pos.min()
+    # data_max = pos.max()
+    # print(f"[INFO] Setting plot limits from {data_min:.2f} to {data_max:.2f}")
+
+    data_min = 0.0
+    data_max = 100000
+    margin = 5000
+    ax.set_xlim(data_min - margin, data_max + margin)
+    ax.set_ylim(data_min - margin, data_max + margin)
+    ax.set_zlim(data_min - margin, data_max + margin)
     
     plt.savefig('sr_3d.png', dpi=300, bbox_inches='tight')
     print("[INFO] Saved figure to sr_3d.png")
@@ -81,7 +85,8 @@ def visualize_sr_3d(inpath, box_size=100.0, sample_3d=64*64*64):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Visualize SR simulation data')
     parser.add_argument('--inpath', type=str, required=True, help='Path to the SR simulation data')
+    parser.add_argument('--downsample_factor', type=int, default=64, help='Downsample factor for visualization')
     args = parser.parse_args()
-    visualize_sr_3d(args.inpath)
+    visualize_sr_3d(args.inpath, args.downsample_factor)
 
 
