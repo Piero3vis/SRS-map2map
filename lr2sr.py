@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from map2map import models
 from map2map.norms import cosmology
+from torch.utils.tensorboard import SummaryWriter
 
 from bigfile import BigFile
 import argparse
@@ -17,6 +18,7 @@ parser.add_argument('--lr-input',required=True,type=str,help='path of the lr inp
 parser.add_argument('--sr-path',required=True,type=str,help='path to save sr output')
 parser.add_argument('--Lbox-kpc',default=100000,type=float,help='LR/HR/SR Boxsize, in kpc/h')
 parser.add_argument('--nsplit',default=4,type=int,help='split the LR box into chunks to apply SR')
+parser.add_argument('--log-dir', default='runs/lr2sr', type=str, help='tensorboard log directory')
 
 args = parser.parse_args()
 model_path = args.model_path
@@ -40,6 +42,9 @@ del state
 
 model.eval()
 model.to(device)
+
+# Initialize tensorboard writer
+writer = SummaryWriter(args.log_dir)
 
 #--------------------------
 def narrow_like(sr_box,tgt_Ng):
@@ -68,6 +73,33 @@ def sr_field(lr_field,tgt_size):
 
     with torch.no_grad():
         sr_box = model(lr_field)
+        
+        # Downsample and log only displacement fields to save memory
+        if idx % 10 == 0:  # Log only every 10th chunk
+            # Take middle slice and downsample if needed
+            lr_slice = lr_field[0, 0:3, lr_field.shape[2]//2].cpu()
+            sr_slice = sr_box[0, 0:3, sr_box.shape[2]//2].cpu()
+            
+            # Downsample if too large (e.g., if larger than 256x256)
+            if lr_slice.shape[1] > 256:
+                lr_slice = torch.nn.functional.interpolate(
+                    lr_slice.unsqueeze(0), 
+                    size=(256, 256), 
+                    mode='bilinear'
+                )[0]
+            if sr_slice.shape[1] > 256:
+                sr_slice = torch.nn.functional.interpolate(
+                    sr_slice.unsqueeze(0), 
+                    size=(256, 256), 
+                    mode='bilinear'
+                )[0]
+            
+            writer.add_image('LR_input/displacement', lr_slice, global_step=idx)
+            writer.add_image('SR_output/displacement', sr_slice, global_step=idx)
+            
+            # Clear CUDA cache
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     sr_box = sr_box.cpu().numpy()
     sr_disp = cosmology.disnorm(sr_box[0,0:3,],z=redshift,undo=True)
@@ -148,4 +180,5 @@ blockname='Velocity'
 dest.create_from_array(blockname,vel_field)
 
 print ("Generated SR column in ",path)
+writer.close()  # Close the tensorboard writer
 
