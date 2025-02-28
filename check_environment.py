@@ -109,16 +109,20 @@ def check_model_input_size(model_path):
         state_dict = torch.load(model_path, map_location=torch.device('cpu'))
         print(f"\n🏗️ Model {os.path.basename(model_path)} structure:")
         
-        # Print the full structure of state_dict
+        # Count total parameters
+        total_params = 0
         for key in state_dict.keys():
             print(f"   {key}")
             if isinstance(state_dict[key], dict):
                 for subkey, value in state_dict[key].items():
                     if isinstance(value, torch.Tensor):
-                        print(f"      {subkey}: {value.shape}")
+                        params = value.numel()
+                        total_params += params
+                        print(f"      {subkey}: {value.shape} ({params:,} parameters)")
                     else:
                         print(f"      {subkey}: {type(value)}")
         
+        print(f"\n📊 Total parameters: {total_params:,}")
         return True
     except Exception as e:
         print(f"❌ Error analyzing model structure: {str(e)}")
@@ -166,7 +170,7 @@ def main():
     if not check_models():
         checks_passed = False
     else:
-        for model_file in ['SRmodel/G_z0.pt', 'SRmodel/G_z2.pt']:
+        for model_file in ['SRmodel/G_z0.pt', 'SRmodel/G_z2.pt', 'SRmodel/G_z0_modified.pt']:
             check_model_input_size(model_file)
     
     # Find all .npy files

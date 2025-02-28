@@ -147,12 +147,12 @@ def visualize_comparison(lr_pos, sr_pos, Lbox=100000, margin=5000, downsample_fa
     ax3 = fig.add_subplot(133, projection='3d')
     try:
         # Downsample SR positions to match LR grid
-        
-        diff = sr_pos - lr_pos
+        sr_downsampled = sr_pos[:lr_pos.shape[0]]
+        diff = sr_downsampled - lr_pos
         
         # Plot difference vectors
-        scatter = ax3.scatter(diff[:, 0], diff[:, 1], diff[:, 2], 
-                            
+        scatter = ax3.scatter(lr_pos[:, 0], lr_pos[:, 1], lr_pos[:, 2], 
+                            c=np.linalg.norm(diff, axis=1),
                             cmap='viridis', s=0.8, alpha=0.2)
         plt.colorbar(scatter, ax=ax3, label='Displacement magnitude [Mpc/h]')
         
@@ -170,8 +170,8 @@ def visualize_comparison(lr_pos, sr_pos, Lbox=100000, margin=5000, downsample_fa
     ax3.set_zlim(0 - margin, Lbox + margin)
     
     plt.tight_layout()
-    plt.savefig('lr_sr_comparison.png', dpi=300, bbox_inches='tight')
-    print("[INFO] Saved comparison plot to lr_sr_comparison.png")
+    plt.savefig(f'plots/lr_sr_comparison_{downsample_factor}.png', dpi=300, bbox_inches='tight')
+    print(f"[INFO] Saved comparison plot to plots/lr_sr_comparison_{downsample_factor}.png")
     plt.show()
 
 if __name__ == "__main__":

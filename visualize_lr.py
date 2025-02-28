@@ -4,6 +4,18 @@ from bigfile import File
 import os
 from map2map.norms import cosmology
 
+def check_latex_installed():
+    """Check if LaTeX is available in the system."""
+    try:
+        plt.rcParams['text.usetex'] = True
+        fig, ax = plt.subplots()
+        ax.text(0, 0, r'$\LaTeX$')
+        plt.close(fig)
+        return True
+    except Exception as e:
+        plt.rcParams['text.usetex'] = False
+        return False
+
 def pos2dis(pos, boxsize, Ng):
     """Assume `pos` is ordered in `pid` that aligns with the Lagrangian lattice,
     and all displacement must not exceed half box size.
@@ -70,7 +82,7 @@ def load_lr_data(file_path):
         
         dis = np.moveaxis(dis,-1,0)
         
-        #disp = cosmology.disnorm(dis,z=redshift)
+        #disp = cosmology.disnorm(dis,z=redshift) when removing this it removes the grid
         disp = dis
         disp = disp.astype('f4')
         print ("z=%.1f"%redshift,"disp shape:",np.shape(disp))
@@ -84,6 +96,26 @@ def create_positions(lr_data, Lbox=100000, Ng_lr=64):
     return lr_pos
 
 def visualize_lr(pos, Lbox=100000, Ng_lr=64):
+    # Check LaTeX availability
+    has_latex = check_latex_installed()
+    
+    if has_latex:
+        # LaTeX configuration
+        plt.rcParams.update({
+            'text.usetex': True,
+            'font.family': 'serif',
+            'font.serif': ['Computer Modern Roman'],
+            'text.latex.preamble': r'\usepackage{amsmath}'
+        })
+        print("[INFO] Using LaTeX for text rendering")
+    else:
+        # Regular text configuration
+        plt.rcParams.update({
+            'text.usetex': False,
+            'font.family': 'DejaVu Sans'
+        })
+        print("[INFO] LaTeX not available, using standard text rendering")
+
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111, projection='3d')
     
@@ -94,17 +126,30 @@ def visualize_lr(pos, Lbox=100000, Ng_lr=64):
         print(f"[ERROR] Failed to create scatter plot: {str(e)}")
         raise
     
-    # Add labels and title
-    ax.set_xlabel('X ')
-    ax.set_ylabel('Y ')
-    ax.set_zlabel('Z ')
-    ax.set_title(f'LR Simulation Particle Distribution with Ng_lr = {Ng_lr}')
+    # Add labels and title with conditional formatting
+    if has_latex:
+        ax.set_xlabel(r'$X$', fontsize=12)
+        ax.set_ylabel(r'$Y$', fontsize=12)
+        ax.set_zlabel(r'$Z$', fontsize=12)
+        
+        title = r'$\mathrm{LR\ Simulation:\ Particle\ Distribution}$' + '\n' + \
+                r'$N_{\mathrm{g,lr}}: ' + f'{Ng_lr}$'
+        
+        ax.set_title(title, fontsize=14, pad=20)
+    else:
+        ax.set_xlabel('X', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Y', fontsize=12, fontweight='bold')
+        ax.set_zlabel('Z', fontsize=12, fontweight='bold')
+        
+        title = f'LR Simulation: Particle Distribution\n' + \
+                f'Ng_lr: {Ng_lr}'
+        
+        ax.set_title(title, 
+                     fontsize=14, 
+                     fontweight='bold', 
+                     family='DejaVu Sans',
+                     pad=20)
     
-    # # Set axis limits based on data range
-    # data_min = pos.min()
-    # data_max = pos.max()
-    # print(f"[INFO] Setting plot limits from {data_min:.2f} to {data_max:.2f}")
-
     data_min = 0.0
     data_max = Lbox
     margin = 5000
@@ -112,8 +157,8 @@ def visualize_lr(pos, Lbox=100000, Ng_lr=64):
     ax.set_ylim(data_min - margin, data_max + margin)
     ax.set_zlim(data_min - margin, data_max + margin)
     
-    plt.savefig('lr_3d.png', dpi=300, bbox_inches='tight')
-    print(f"[INFO] Saved figure to lr_3d with Ng_lr = {Ng_lr}")
+    plt.savefig(f'plot/lr_3d_Ng{Ng_lr}.png', dpi=300, bbox_inches='tight')
+    print(f"[INFO] Saved figure to plot/lr_3d_Ng{Ng_lr}.png")
     plt.show()
 
 if __name__ == "__main__":
@@ -124,6 +169,6 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
    
-    lr_pos = create_positions(args.input)
-    visualize_lr(lr_pos)
+    lr_pos = create_positions(args.input, 100000, 64)
+    visualize_lr(lr_pos, 100000, 64)
 

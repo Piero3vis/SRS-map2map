@@ -25,7 +25,7 @@ model_path = args.model_path
 redshift = args.redshift
 
 # load model
-upsample_fac = 8
+upsample_fac = 2
 in_channels = out_channels = 6
 model = models.G(in_channels,out_channels,upsample_fac)
 
