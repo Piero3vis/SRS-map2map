@@ -49,8 +49,8 @@ def dis2pos(dis_field, boxsize, Ng):
 
     return pos
 
-def load_lr_data(file_path):
-    """Load LR data from either BigFile or .npy format."""
+def load_hr_data(file_path):
+    """Load HR data from either BigFile or .npy format."""
     if file_path.endswith('.npy'):
         print(f'loading {file_path} from .npy file')
         lr_data = np.load(file_path)
@@ -88,14 +88,15 @@ def load_lr_data(file_path):
         print ("z=%.1f"%redshift,"disp shape:",np.shape(disp))
         return disp
 
-def create_positions(lr_data, Lbox=100000, Ng_lr=64):
-    lr_pos = load_lr_data(lr_data)
-    lr_pos = dis2pos(lr_pos,Lbox,Ng_lr)
-    lr_pos = lr_pos.reshape(3,Ng_lr*Ng_lr*Ng_lr).transpose()
-    print(f'shape of lr_pos after dis2pos: {lr_pos.shape}')
-    return lr_pos
+def create_positions(hr_data, Lbox=100000, Ng_hr=64):
+    hr_pos = load_hr_data(hr_data)
+    hr_pos = dis2pos(hr_pos,Lbox,Ng_hr)
+    hr_pos = hr_pos.reshape(3,Ng_hr*Ng_hr*Ng_hr).transpose()
+    print(f'shape of hr_pos after dis2pos: {hr_pos.shape}')
+    return hr_pos
 
-def visualize_hr(pos, Lbox=100000, Ng_hr=64):
+def visualize_hr(pos, Lbox=100, Ng_hr=64):
+    pos = pos/1000.0
     # Check LaTeX availability
     has_latex = check_latex_installed()
     
@@ -128,11 +129,11 @@ def visualize_hr(pos, Lbox=100000, Ng_hr=64):
     
     # Add labels and title with conditional formatting
     if has_latex:
-        ax.set_xlabel(r'$X$', fontsize=12)
-        ax.set_ylabel(r'$Y$', fontsize=12)
-        ax.set_zlabel(r'$Z$', fontsize=12)
+        ax.set_xlabel(r'$X [Mpc]$', fontsize=12)
+        ax.set_ylabel(r'$Y [Mpc]$', fontsize=12)
+        ax.set_zlabel(r'$Z [Mpc]$', fontsize=12)
         
-        title = r'$\mathrm{HR\ Simulation:\ Particle\ Distribution}$' + '\n' + \
+        title = r'$\mathrm{HR\ Simulation:\ 3D\ Particle\ Distribution}$' + '\n' + \
                 r'$N_{\mathrm{g,hr}}: ' + f'{Ng_hr}$'
         
         ax.set_title(title, fontsize=14, pad=20)
@@ -152,7 +153,7 @@ def visualize_hr(pos, Lbox=100000, Ng_hr=64):
     
     data_min = 0.0
     data_max = Lbox
-    margin = 5000
+    margin = 5
     ax.set_xlim(data_min - margin, data_max + margin)
     ax.set_ylim(data_min - margin, data_max + margin)
     ax.set_zlim(data_min - margin, data_max + margin)
@@ -169,6 +170,6 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
    
-    lr_pos = create_positions(args.input, 100000, 64)
-    visualize_hr(lr_pos, 100000, 64)
+    hr_pos = create_positions(args.input, 100000, 64)
+    visualize_hr(hr_pos, 100, 64)
 

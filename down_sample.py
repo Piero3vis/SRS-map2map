@@ -91,87 +91,54 @@ def down_sample(data, downsample_factor):
     print(f"[INFO] Sampled {sample_3d} points")
     return downsampled
 
-def save_downsampled_data(data, output_path, Lbox=100000, Ng_sr=64):
-    """Save downsampled data in BigFile format with Position block."""
-    if output_path is None:
-        return
-        
-    print(data.shape)
-    sr_pos = dis2pos(data,Lbox,Ng_sr)
-    sr_pos = sr_pos.reshape(3,Ng_sr*Ng_sr*Ng_sr).transpose()
-    vel_field = vel_field.reshape(3,Ng_sr*Ng_sr*Ng_sr).transpose()
-    
-    print(f"[INFO] Saving downsampled data to {output_path}")
+def save_bigfile(pos, vel, output_path):
+    """Save position and velocity data in BigFile format."""
+    print(f"[INFO] Saving BigFile format to {output_path}")
     os.makedirs(output_path, exist_ok=True)
-    
-    # Create BigFile
     dest = BigFile(output_path, create=1)
     
-    # Save position block
-    blockname = 'Position'
-    dest.create_from_array(blockname, data.transpose())
+    dest.create_from_array('Position', pos)
+    dest.create_from_array('Velocity', vel)
+    print(f"[INFO] Saved Position and Velocity data to {output_path}")
 
-    blockname = 'Velocity'
-    dest.create_from_array(blockname, data.transpose())
-    
-    print(f"[INFO] Saved Position data to {output_path}")
+def save_field(field_data, output_path, downsample_factor):
+    """Save field data in .npy format with shape (6, N, N, N)."""
+    print(f"[INFO] Saving field data to {output_path}")
+    # Reshape to (6, N, N, N)
+    N = downsample_factor
+    field_data = field_data.reshape(6, N, N, N)
+    np.save(output_path, field_data)
+    print(f"[INFO] Saved field data with shape {field_data.shape} to {output_path}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='lr2sr')
-    parser.add_argument('--lr-input', required=True, type=str, help='path of the lr input')
-    parser.add_argument('--ds-path', required=True, type=str, help='path to save ds output')
-    parser.add_argument('--redshift', required=True, type=float, help='redshift of the data')
-    parser.add_argument('--Lbox-kpc', default=100000, type=float, help='LR/HR/SR Boxsize, in kpc/h')
-    parser.add_argument('--downsample-factor', type=int, default=32, help='Downsample factor')
-
+    parser = argparse.ArgumentParser(description='Downsample field data')
+    parser.add_argument('--input', required=True, type=str, help='Input field data (.npy)')
+    parser.add_argument('--output', required=True, type=str, help='Output path for downsampled field (.npy)')
+    parser.add_argument('--downsample-factor', type=int, default=32, help='Target grid size')
+    
     args = parser.parse_args()
 
-    # Load the normalized field (6 channels: 3 displacement, 3 velocity)
-    lr_box = np.load(args.lr_input)
+    # Load input field (6, Ng, Ng, Ng)
+    print(f"[INFO] Loading field from {args.input}")
+    field = np.load(args.input)
     
-    # Unnormalize the fields
-    disp_field = cosmology.disnorm(lr_box[0:3,], z=args.redshift, undo=True)
-    vel_field = cosmology.velnorm(lr_box[3:6,], z=args.redshift, undo=True)
-
-    # Convert displacement to position
-    Lbox = args.Lbox_kpc
-    Ng_ds = lr_box.shape[1]  # assuming cubic box
-    ds_pos = dis2pos(disp_field, Lbox, Ng_ds)
+    # Get random indices for downsampling
+    N = args.downsample_factor
+    total_samples = N**3
+    original_size = np.prod(field.shape[1:])
     
-    # Reshape for downsampling
-    ds_pos = ds_pos.reshape(3, Ng_ds*Ng_ds*Ng_ds)
-    vel_field = vel_field.reshape(3, Ng_ds*Ng_ds*Ng_ds)
+    # Generate grid indices and randomly sample them
+    grid_indices = np.arange(original_size)
+    random_indices = np.random.choice(grid_indices, total_samples, replace=False)
     
-    # Downsample both position and velocity fields using the same indices
-    if args.downsample_factor:
-        sample_3d = args.downsample_factor**3
-        total_points = ds_pos.shape[1]
-        
-        if sample_3d > total_points:
-            print(f"[WARNING] Requested sample size ({sample_3d}) larger than data size ({total_points})")
-            sample_3d = total_points
-        
-        # Use same random indices for both fields
-        random_indices = np.random.choice(total_points, sample_3d, replace=False)
-        ds_pos = ds_pos[:, random_indices]
-        vel_field = vel_field[:, random_indices]
-        print(f"[INFO] Sampled {sample_3d} points")
+    # Reshape and downsample while keeping the channel dimension
+    field_flat = field.reshape(6, -1)
+    field_downsampled = field_flat[:, random_indices]
     
-    # Transpose for BigFile format
-    ds_pos = ds_pos.transpose()
-    vel_field = vel_field.transpose()
-
-    # Save to BigFile format
-    path = args.ds_path
-    os.makedirs(path, exist_ok=True)
-
-    dest = BigFile(path, create=1)
-
-    blockname = 'Position'
-    dest.create_from_array(blockname, ds_pos)
-
-    blockname = 'Velocity'
-    dest.create_from_array(blockname, vel_field)
-
-    print(f"Generated downsampled column in {path}")
+    # Reshape to final grid format (6, N, N, N)
+    field_grid = field_downsampled.reshape(6, N, N, N)
+    
+    # Save downsampled field
+    np.save(args.output, field_grid)
+    print(f"[INFO] Saved downsampled field with shape {field_grid.shape} to {args.output}")
 

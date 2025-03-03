@@ -88,6 +88,7 @@ def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
 
     # Load positions from file
     pos = load_sr_positions(inpath)
+    pos = pos/1000.0
     sample_3d = downsample_factor**3
     
     # Basic data validation
@@ -120,7 +121,7 @@ def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
     
     # Plot with error handling
     try:
-        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=0.8, alpha=0.1)
+        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=0.8, alpha=0.008)
         print(f"[INFO] If it looks empty, it's because the alpha is too low for the number of particles")
     except Exception as e:
         print(f"[ERROR] Failed to create scatter plot: {str(e)}")
@@ -128,23 +129,23 @@ def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
     
     # Get Ng values
     ng_sr = check_shape(inpath)
-    ng_lr = int(ng_sr/2)  # LR is half of SR
+    ng_lr = int(ng_sr/8)  # LR is half of SR in the case of the corrected NN, the original is an eighth
     
     # Add labels and title with conditional formatting
     if has_latex:
-        ax.set_xlabel(r'$X$', fontsize=12)
-        ax.set_ylabel(r'$Y$', fontsize=12)
-        ax.set_zlabel(r'$Z$', fontsize=12)
+        ax.set_xlabel(r'$X [Mpc]$', fontsize=13)
+        ax.set_ylabel(r'$Y [Mpc]$', fontsize=13)
+        ax.set_zlabel(r'$Z [Mpc]$', fontsize=13)
         
-        title = r'$\mathrm{SR\ Simulation:\ Particle\ Distribution}$' + '\n' + \
+        title = r'$\mathrm{SR\ Simulation: \ Particle\ Distribution}$' + '\n' + \
                 r'$N_{\mathrm{g,sr}}: ' + f'{ng_sr}' + \
-                r'\ (N_{\mathrm{g,lr}}: ' + f'{ng_lr}'+ r',\ \mathrm{super\ resolution:\ 2\times})$'
+                r'\ (N_{\mathrm{g,lr}}: ' + f'{ng_lr}'+ r',\ \mathrm{super\ resolution:\ 8\times})$'
         
-        ax.set_title(title, fontsize=14, pad=20)
+        ax.set_title(title, fontsize=20, pad=15)
     else:
-        ax.set_xlabel('X', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Y', fontsize=12, fontweight='bold')
-        ax.set_zlabel('Z', fontsize=12, fontweight='bold')
+        ax.set_xlabel('X [Kpc]', fontsize=14, fontweight='bold')
+        ax.set_ylabel('Y [Kpc]', fontsize=14, fontweight='bold')
+        ax.set_zlabel('Z [Kpc]', fontsize=14, fontweight='bold')
         
         title = f'SR Simulation: Particle Distribution\n' + \
                 f'Ng_sr: {ng_sr} (Ng_lr: {ng_lr}, super_resolution: 2x)'
@@ -161,14 +162,14 @@ def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
     # print(f"[INFO] Setting plot limits from {data_min:.2f} to {data_max:.2f}")
 
     data_min = 0.0
-    data_max = 100000
-    margin = 5000
+    data_max = 100
+    margin = 10
     ax.set_xlim(data_min - margin, data_max + margin)
     ax.set_ylim(data_min - margin, data_max + margin)
     ax.set_zlim(data_min - margin, data_max + margin)
     
     # Update save filename to include both Ng values
-    plt.savefig(f'plot/sr_3d_{downsample_factor}_from_sim_lr{ng_lr}.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'plot/sr_3d_{downsample_factor}_from_sim_lr{ng_lr}.png', dpi=200, bbox_inches='tight', pad_inches=0.3)
     print(f"[INFO] Saved figure to plot/sr_3d_{downsample_factor}_from_sim_lr{ng_lr}.png")
     plt.show()
 
