@@ -35,10 +35,14 @@ def check_data_format(data_path):
         print(f"❌ Error reading data: {str(e)}")
         return False
 
-def print_model_architecture():
-    """Print ASCII visualization of the model architecture."""
-    print("""
-    3D Super-Resolution Architecture (512x upsampling)
+def print_model_architecture(model_path):
+    """Print ASCII visualization of the model architecture based on model type."""
+    model_name = os.path.basename(model_path)
+    
+    if model_name == 'G_z0.pt' or model_name == 'G_z2.pt':
+        print(f"\nModel: {model_name} (Original 8× upsampling)")
+        print("""
+    3D Super-Resolution Architecture (512× upsampling)
     
     Input (6 channels: pos+vel)         Output (6 channels: SR pos+vel)
     [Ng×Ng×Ng×6] ─────────────┐              ┌──── [8Ng×8Ng×8Ng×6]
@@ -51,7 +55,26 @@ def print_model_architecture():
     • Normalization
     • Two 3×3×3 conv layers
     • Projection back to 6 channels
-    """)
+        """)
+    elif 'modified' in model_name:
+        print(f"\nModel: {model_name} (Modified 2× upsampling)")
+        print("""
+    3D Super-Resolution Architecture (8× upsampling)
+    
+    Input (6 channels: pos+vel)         Output (6 channels: SR pos+vel)
+    [Ng×Ng×Ng×6] ─────────────┐              ┌──── [2Ng×2Ng×2Ng×6]
+                              ↓              ↑
+                     [512 channels]──→[256]──→[128]──→[64]
+                        block0    block1    block2    block3
+                     (3D Conv)   (3D Conv) (3D Conv) (3D Conv)
+    
+    Each block contains:
+    • Normalization
+    • Two 3×3×3 conv layers
+    • Projection back to 6 channels
+        """)
+    else:
+        print(f"\nUnknown model type: {model_name}")
 
 def check_data_shape(data_path):
     """Check if data dimensions match model requirements."""
@@ -161,8 +184,6 @@ def suggest_command(npy_files):
 def main():
     print("Running environment checks...")
     print("-" * 50)
-    print_model_architecture()
-    print("-" * 50)
     
     checks_passed = True
     
@@ -170,8 +191,12 @@ def main():
     if not check_models():
         checks_passed = False
     else:
+        # Print architecture for each found model
         for model_file in ['SRmodel/G_z0.pt', 'SRmodel/G_z2.pt', 'SRmodel/G_z0_modified.pt']:
-            check_model_input_size(model_file)
+            if os.path.exists(model_file):
+                print_model_architecture(model_file)
+                check_model_input_size(model_file)
+                print("-" * 50)
     
     # Find all .npy files
     npy_files = find_npy_files()

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from bigfile import File
 import os
 from map2map.norms import cosmology
+import argparse
 
 def check_latex_installed():
     """Check if LaTeX is available in the system."""
@@ -96,7 +97,7 @@ def create_positions(hr_data, Lbox=100000, Ng_hr=64):
     return hr_pos
 
 def visualize_hr(pos, Lbox=100, Ng_hr=64):
-    pos = pos/1000.0
+    pos = pos/1000.0 # Convert to Mpc
     # Check LaTeX availability
     has_latex = check_latex_installed()
     
@@ -122,7 +123,7 @@ def visualize_hr(pos, Lbox=100, Ng_hr=64):
     
     # Plot with error handling
     try:
-        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=0.8, alpha=0.2)
+        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=0.8, alpha=0.008)
     except Exception as e:
         print(f"[ERROR] Failed to create scatter plot: {str(e)}")
         raise
@@ -136,7 +137,7 @@ def visualize_hr(pos, Lbox=100, Ng_hr=64):
         title = r'$\mathrm{HR\ Simulation:\ 3D\ Particle\ Distribution}$' + '\n' + \
                 r'$N_{\mathrm{g,hr}}: ' + f'{Ng_hr}$'
         
-        ax.set_title(title, fontsize=14, pad=20)
+        ax.set_title(title, fontsize=20, pad=15)
     else:
         ax.set_xlabel('X', fontsize=12, fontweight='bold')
         ax.set_ylabel('Y', fontsize=12, fontweight='bold')
@@ -162,14 +163,19 @@ def visualize_hr(pos, Lbox=100, Ng_hr=64):
     print(f"[INFO] Saved figure to plot/hr_3d_Ng{Ng_hr}.png")
     plt.show()
 
-if __name__ == "__main__":
-    import argparse
+def main():
+  
 
     parser = argparse.ArgumentParser(description='Visualize HR simulation data')
     parser.add_argument('--input', required=True, type=str, help='Path to HR input file (BigFile or .npy)')
-    
+
     args = parser.parse_args()
-   
+
     hr_pos = create_positions(args.input, 100000, 64)
     visualize_hr(hr_pos, 100, 64)
+
+if __name__ == "__main__":
+    main()
+
+
 

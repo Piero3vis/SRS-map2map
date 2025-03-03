@@ -49,12 +49,47 @@ We use [MP-Gadget](https://github.com/MP-Gadget/MP-Gadget) to run cosmological s
   python field2bigfile.py --input field_data.npy --output output_bigfile --redshift 0.0 --Lbox-kpc 100000
   ```
 
-## Data Formats
+## Data Formats and Visualization
 
-The pipeline supports multiple data formats:
-- **BigFile**: Directory-based format containing Position and Velocity data
-- **Field Data**: NumPy arrays (.npy) with shape (6, N, N, N) containing normalized displacement and velocity fields
-- **Visualization Output**: PNG files showing 3D particle distributions
+### BigFile Structures
+The pipeline works with two types of BigFile formats:
+
+1. **Original Simulation Format** (use `visualize_hr.py`):
+   ```
+   simulation_output/
+   ├── Header/           # Contains simulation parameters
+   ├── 1/
+   │   ├── ID/          # Particle IDs
+   │   ├── Position/    # Positions in kpc/h
+   │   └── Velocity/    # Velocities
+   └── ...
+   ```
+
+2. **SR Output Format** (use `visualize_sr.py`):
+   ```
+   sr_output/
+   ├── Position/        # Positions in kpc/h
+   └── Velocity/        # Velocities
+   ```
+
+### Visualization Tools
+- **visualize_hr.py**: For original simulation outputs
+  ```bash
+  python visualize_hr.py --input path/to/simulation/output
+  ```
+
+- **visualize_sr.py**: For SR outputs (from lr2sr.py)
+  ```bash
+  python visualize_sr.py --inpath path/to/sr/output --downsample-factor 64
+  ```
+  - Positions are automatically converted from kpc/h to Mpc/h for visualization
+  - Use `--downsample-factor` to reduce the number of plotted particles for better visualization
+  - Example: with `--downsample-factor 64`, it will randomly sample 64³ particles
+
+### Field Data Format
+- NumPy arrays (.npy) with shape (6, N, N, N)
+- First 3 channels: normalized displacement field
+- Last 3 channels: normalized velocity field
 
 ## Notes
 
