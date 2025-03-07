@@ -113,6 +113,17 @@ def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
         
         random_indices = np.random.choice(pos.shape[0], sample_3d, replace=False)
         pos = pos[random_indices]
+        
+        # Create a directory for the downsampled data 
+        # path = f'down_sample_from_vis_sr/sr_3d_{downsample_factor}_from_{inpath}'
+        # os.makedirs(path, exist_ok=True)
+
+        # dest=BigFile(path,create=1)
+
+        # blockname='Position'
+        # dest.create_from_array(blockname, pos*1000.0)
+
+
         print(f"[INFO] Sampled {sample_3d}  points for visualization. Sampling_size: {sample_3d==downsample_factor**3}")
 
     # Create a 3D scatter plot
@@ -158,9 +169,7 @@ def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
     
     # # Set axis limits based on data range
     # data_min = pos.min()
-    # data_max = pos.max()
-    # print(f"[INFO] Setting plot limits from {data_min:.2f} to {data_max:.2f}")
-
+    # data_max = pos.max(){ng_lr}
     data_min = 0.0
     data_max = 100
     margin = 10
