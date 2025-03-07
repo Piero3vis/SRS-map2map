@@ -108,12 +108,8 @@ The pipeline works with two types of BigFile formats:
 ### Super Resolution Process
 Here's an animation showing the super-resolution process from LR to SR:
 
-![SR-Process](https://github.com/yueyingn/SRS-map2map/blob/main/SR-process.gif)
+![SR-Process](https://github.com/Piero3vis/SRS-map2map/blob/tensor_CPU/SR.gif)
 
-The animation shows:
-- Left: Original LR simulation (64³ particles)
-- Right: Super-resolved SR output (512³ particles)
-- The enhanced detail and structure preservation in the SR result
 
 ### Static Comparison
 For a detailed static comparison:
