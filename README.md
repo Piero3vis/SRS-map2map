@@ -103,4 +103,26 @@ The pipeline works with two types of BigFile formats:
 
 - The downsampling tools preserve the structure of the data while reducing the number of points, useful for visualization and analysis of large datasets.
 
+## Visualization Examples
+
+### Super Resolution Process
+Here's an animation showing the super-resolution process from LR to SR:
+
+![SR-Process](https://github.com/yueyingn/SRS-map2map/blob/main/SR-process.gif)
+
+The animation shows:
+- Left: Original LR simulation (64³ particles)
+- Right: Super-resolved SR output (512³ particles)
+- The enhanced detail and structure preservation in the SR result
+
+### Static Comparison
+For a detailed static comparison:
+
+![SR-image](https://github.com/yueyingn/SRS-map2map/blob/main/SR-img.png)
+
+This image shows the direct comparison between:
+- LR input (left panel)
+- SR output (right panel)
+- Middle panel shows the intermediate stage
+
 
