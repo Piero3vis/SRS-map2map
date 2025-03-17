@@ -64,7 +64,7 @@ def check_latex_installed():
         plt.rcParams['text.usetex'] = False
         return False
 
-def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
+def visualize_sr_3d(inpath, downsample_factor, box_size=100.0, s=0.8, alpha=0.008):
     """Visualize 3D positions of SR simulation data."""
     # Check LaTeX availability
     has_latex = check_latex_installed()
@@ -132,7 +132,7 @@ def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
     
     # Plot with error handling
     try:
-        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=0.8, alpha=0.008)
+        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=s, alpha=alpha)
         print(f"[INFO] If it looks empty, it's because the alpha is too low for the number of particles")
     except Exception as e:
         print(f"[ERROR] Failed to create scatter plot: {str(e)}")
@@ -140,7 +140,7 @@ def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
     
     # Get Ng values
     ng_sr = check_shape(inpath)
-    ng_lr = int(ng_sr/8)  # LR is half of SR in the case of the corrected NN, the original is an eighth
+    ng_lr = int(ng_sr/2)  # LR is half of SR in the case of the corrected NN, the original is an eighth
     
     # Add labels and title with conditional formatting
     if has_latex:
@@ -150,7 +150,7 @@ def visualize_sr_3d(inpath, downsample_factor, box_size=100.0):
         
         title = r'$\mathrm{SR\ Simulation: \ Particle\ Distribution}$' + '\n' + \
                 r'$N_{\mathrm{g,sr}}: ' + f'{ng_sr}' + \
-                r'\ (N_{\mathrm{g,lr}}: ' + f'{ng_lr}'+ r',\ \mathrm{super\ resolution:\ 8\times})$'
+                r'\ (N_{\mathrm{g,lr}}: ' + f'{ng_lr}'+ r',\ \mathrm{super\ resolution:\ 2\times})$'
         
         ax.set_title(title, fontsize=20, pad=15)
     else:
@@ -189,4 +189,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(f"Downsample Factor: {args.downsample_factor}")
     load_sr_positions(args.inpath)
-    visualize_sr_3d(args.inpath, args.downsample_factor)
+    visualize_sr_3d(args.inpath, args.downsample_factor, s=0.8, alpha=0.08)

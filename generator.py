@@ -72,9 +72,11 @@ original_model = G(in_chan, out_chan, scale_factor=scale_factor,
 
 # Load the pretrained weights into the original model.
 original_model.load_state_dict(pretrained_state_dict)
+print(original_model)
 
 # Create the modified model that only uses the first upscaling block.
 modified_model = ModifiedG(original_model)
+print(modified_model)   
 
 # Optionally, freeze the reused weights to only train new components (if any)
 # for param in modified_model.block0.parameters():

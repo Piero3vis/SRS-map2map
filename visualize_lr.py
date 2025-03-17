@@ -1,12 +1,60 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from bigfile import File
+from mpl_toolkits.mplot3d import Axes3D
 import os
-from map2map.norms import cosmology
+import sys, argparse
+from bigfile import BigFile
+
+W = 5.8
+plt.rcParams.update({
+    'figure.figsize': (W, W/(4/3)),     # 4:3 aspect ratio
+    'font.size' : 14,                   # Set font size to 11pt
+    'axes.labelsize': 14,               # -> axis labels
+    'legend.fontsize': 14,              # -> legends
+    'font.family': 'lmodern',
+    'text.usetex': True,
+    'text.latex.preamble': (            # LaTeX preamble
+        r'\usepackage{lmodern}'
+        # ... more packages if needed
+    )
+})
+
+
+def load_lr_positions(inpath):
+    """Load positions from LR simulation data."""
+    if not os.path.exists(inpath):
+        raise FileNotFoundError(f"Input path does not exist: {inpath}")
+    
+    print(f"[INFO] Loading SR data from: {inpath}")
+    bf = BigFile(inpath)
+    
+    if 'Position' not in bf:
+        raise KeyError("'Position' dataset not found in BigFile")
+    
+    pos = bf['Position'][:]
+    print(f"[INFO] Loaded positions with shape: {pos.shape}")
+    return pos
+
+def is_cube(n):
+    cube_root = n**(1./3.)
+    if round(cube_root) ** 3 == n:
+        print(True, "Particle number is a cube number, its cubed root is", round(cube_root))
+        return cube_root
+    else:
+        print(False, "Particle number is not a cube number, its cubed root is", cube_root)
+
+def check_shape(inpath):
+    pos = load_lr_positions(inpath)
+    cube_root = is_cube(pos.shape[0])
+    if cube_root is not None:
+        return round(cube_root)
+    else:
+        return None
 
 def check_latex_installed():
     """Check if LaTeX is available in the system."""
     try:
+        # Try to create a simple LaTeX string
         plt.rcParams['text.usetex'] = True
         fig, ax = plt.subplots()
         ax.text(0, 0, r'$\LaTeX$')
@@ -16,86 +64,8 @@ def check_latex_installed():
         plt.rcParams['text.usetex'] = False
         return False
 
-def pos2dis(pos, boxsize, Ng):
-    """Assume `pos` is ordered in `pid` that aligns with the Lagrangian lattice,
-    and all displacement must not exceed half box size.
-    """
-    cellsize = boxsize / Ng
-    lattice = np.arange(Ng) * cellsize + 0.5 * cellsize
-
-    pos[..., 0] -= lattice.reshape(-1, 1, 1)
-    pos[..., 1] -= lattice.reshape(-1, 1)
-    pos[..., 2] -= lattice
-
-    pos -= np.rint(pos / boxsize) * boxsize
-
-    return pos
-
-def dis2pos(dis_field, boxsize, Ng):
-    """Assume 'dis_field' is in order of `pid` that aligns with the Lagrangian lattice,
-    and dis_field.shape = (3,Ng,Ng,Ng)
-    """
-    cellsize = boxsize / Ng
-    lattice = np.arange(Ng) * cellsize + 0.5 * cellsize
-
-    pos = dis_field.copy()
-
-    pos[2] += lattice
-    pos[1] += lattice.reshape(-1, 1)
-    pos[0] += lattice.reshape(-1, 1, 1)
-
-    pos[pos < 0] += boxsize
-    pos[pos > boxsize] -= boxsize
-
-    return pos
-
-def load_lr_data(file_path):
-    """Load LR data from either BigFile or .npy format."""
-    if file_path.endswith('.npy'):
-        print(f'loading {file_path} from .npy file')
-        lr_data = np.load(file_path)
-        if lr_data.shape[0] < 3:
-            raise ValueError("The .npy file must have at least 3 channels for positions.")
-        return lr_data[:3]  # Return only the first three channels (positions)
-    else:
-        print(f'loading {file_path} from bigfile')
-        bigf = File(file_path)
-        header = bigf.open('Header')
-        boxsize = header.attrs['BoxSize'][0]
-        redshift = 1./header.attrs['Time'][0] - 1
-        
-        Ng = header.attrs['TotNumPart'][1] ** (1/3)
-        Ng = int(np.rint(Ng))
-
-        cellsize = boxsize / Ng
-
-        pid_ = bigf.open('1/ID')[:] - 1   # so that particle id starts from 0
-        pos_ = bigf.open('1/Position')[:]
-        pos = np.empty_like(pos_)
-        pos[pid_] = pos_
-        pos = pos.reshape(Ng, Ng, Ng, 3)
-
-        dis = pos2dis(pos, boxsize, Ng)
-        del pos
-
-        dis = dis.astype('f4')
-        
-        dis = np.moveaxis(dis,-1,0)
-        
-        #disp = cosmology.disnorm(dis,z=redshift) when removing this it removes the grid
-        disp = dis
-        disp = disp.astype('f4')
-        print ("z=%.1f"%redshift,"disp shape:",np.shape(disp))
-        return disp
-
-def create_positions(lr_data, Lbox=100000, Ng_lr=64):
-    lr_pos = load_lr_data(lr_data)
-    lr_pos = dis2pos(lr_pos,Lbox,Ng_lr)
-    lr_pos = lr_pos.reshape(3,Ng_lr*Ng_lr*Ng_lr).transpose()
-    print(f'shape of lr_pos after dis2pos: {lr_pos.shape}')
-    return lr_pos
-
-def visualize_hr(pos, Lbox=100000, Ng_hr=64):
+def visualize_lr_3d(inpath, downsample_factor, box_size=100.0, s=0.8, alpha=0.008):
+    """Visualize 3D positions of SR simulation data."""
     # Check LaTeX availability
     has_latex = check_latex_installed()
     
@@ -116,33 +86,78 @@ def visualize_hr(pos, Lbox=100000, Ng_hr=64):
         })
         print("[INFO] LaTeX not available, using standard text rendering")
 
+    # Load positions from file
+    pos = load_lr_positions(inpath)
+    pos = pos/1000.0
+    sample_3d = downsample_factor**3
+    
+    # Basic data validation
+    if pos.size == 0:
+        raise ValueError("Empty position array loaded")
+    
+    if pos.ndim != 2 or pos.shape[1] != 3:
+        raise ValueError(f"Expected position array of shape (N, 3), got {pos.shape}")
+    
+    print(f"[DEBUG] Position stats:")
+    print(f"  - Shape: {pos.shape}")
+    print(f"  - Range X: [{pos[:, 0].min():.2f}, {pos[:, 0].max():.2f}]")
+    print(f"  - Range Y: [{pos[:, 1].min():.2f}, {pos[:, 1].max():.2f}]")
+    print(f"  - Range Z: [{pos[:, 2].min():.2f}, {pos[:, 2].max():.2f}]")
+    
+    # Sample a subset of particles if specified
+
+    if downsample_factor is not None:
+        if sample_3d > pos.shape[0]:
+            print(f"[WARNING] Requested sample size ({sample_3d}) larger than data size ({pos.shape[0]})")
+            sample_3d = pos.shape[0]
+        
+        random_indices = np.random.choice(pos.shape[0], sample_3d, replace=False)
+        pos = pos[random_indices]
+        
+        # Create a directory for the downsampled data 
+        # path = f'down_sample_from_vis_sr/sr_3d_{downsample_factor}_from_{inpath}'
+        # os.makedirs(path, exist_ok=True)
+
+        # dest=BigFile(path,create=1)
+
+        # blockname='Position'
+        # dest.create_from_array(blockname, pos*1000.0)
+
+
+        print(f"[INFO] Sampled {sample_3d}  points for visualization. Sampling_size: {sample_3d==downsample_factor**3}")
+
+    # Create a 3D scatter plot
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111, projection='3d')
     
     # Plot with error handling
     try:
-        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=0.8, alpha=0.2)
+        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=s, alpha=alpha)
+        print(f"[INFO] If it looks empty, it's because the alpha is too low for the number of particles")
     except Exception as e:
         print(f"[ERROR] Failed to create scatter plot: {str(e)}")
         raise
     
+    # Get Ng values
+    ng_lr = check_shape(inpath)
+    
+    
     # Add labels and title with conditional formatting
     if has_latex:
-        ax.set_xlabel(r'$X$', fontsize=12)
-        ax.set_ylabel(r'$Y$', fontsize=12)
-        ax.set_zlabel(r'$Z$', fontsize=12)
+        ax.set_xlabel(r'$X [Mpc]$', fontsize=13)
+        ax.set_ylabel(r'$Y [Mpc]$', fontsize=13)
+        ax.set_zlabel(r'$Z [Mpc]$', fontsize=13)
         
-        title = r'$\mathrm{HR\ Simulation:\ Particle\ Distribution}$' + '\n' + \
-                r'$N_{\mathrm{g,hr}}: ' + f'{Ng_hr}$'
+        title = r'$\mathrm{LR\ Simulation: \ Particle\ Distribution}$' + '\n' + r'$N_{\mathrm{g,lr}}$:' + '\t' + f'{ng_lr}'
         
-        ax.set_title(title, fontsize=14, pad=20)
+        ax.set_title(title, fontsize=20, pad=15)
     else:
-        ax.set_xlabel('X', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Y', fontsize=12, fontweight='bold')
-        ax.set_zlabel('Z', fontsize=12, fontweight='bold')
+        ax.set_xlabel('X [Kpc]', fontsize=14, fontweight='bold')
+        ax.set_ylabel('Y [Kpc]', fontsize=14, fontweight='bold')
+        ax.set_zlabel('Z [Kpc]', fontsize=14, fontweight='bold')
         
-        title = f'HR Simulation: Particle Distribution\n' + \
-                f'Ng_hr: {Ng_hr}'
+        title = f'SR Simulation: Particle Distribution\n' + \
+                f'Ng_sr: {ng_sr} (Ng_lr: {ng_lr}, super_resolution: 2x)'
         
         ax.set_title(title, 
                      fontsize=14, 
@@ -150,25 +165,26 @@ def visualize_hr(pos, Lbox=100000, Ng_hr=64):
                      family='DejaVu Sans',
                      pad=20)
     
+    # # Set axis limits based on data range
+    # data_min = pos.min()
+    # data_max = pos.max(){ng_lr}
     data_min = 0.0
-    data_max = Lbox
-    margin = 5000
+    data_max = 100
+    margin = 10
     ax.set_xlim(data_min - margin, data_max + margin)
     ax.set_ylim(data_min - margin, data_max + margin)
     ax.set_zlim(data_min - margin, data_max + margin)
     
-    plt.savefig(f'plot/hr_3d_Ng{Ng_hr}.png', dpi=300, bbox_inches='tight')
-    print(f"[INFO] Saved figure to plot/hr_3d_Ng{Ng_hr}.png")
+    # Update save filename to include both Ng values
+    plt.savefig(f'plot/lr_3d_{downsample_factor}_from_sim_lr{ng_lr}.png', dpi=200, bbox_inches='tight', pad_inches=0.3)
+    print(f"[INFO] Saved figure to plot/lr_3d_{downsample_factor}_from_sim_lr{ng_lr}.png")
     plt.show()
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Visualize HR simulation data')
-    parser.add_argument('--input', required=True, type=str, help='Path to HR input file (BigFile or .npy)')
-    
+    parser = argparse.ArgumentParser(description='Visualize LR simulation data')
+    parser.add_argument('--inpath', type=str, required=True, help='Path to the LR simulation data')
+    parser.add_argument('--downsample_factor', '--downsample-factor', type=int, default=64, help='Downsample factor for visualization')
     args = parser.parse_args()
-   
-    lr_pos = create_positions(args.input, 100000, 64)
-    visualize_hr(lr_pos, 100000, 64)
-
+    print(f"Downsample Factor: {args.downsample_factor}")
+    load_lr_positions(args.inpath)
+    visualize_lr_3d(args.inpath, args.downsample_factor, s=0.8, alpha=0.08)

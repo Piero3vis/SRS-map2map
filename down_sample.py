@@ -38,27 +38,44 @@ def get_nonlin_fields(inpath, outpath, downsample_factor=None):
     Ng = header.attrs['TotNumPart'][1] ** (1/3)
     Ng = int(np.rint(Ng))
 
-    cellsize = boxsize / Ng
-
+    # Load all data first
     pid_ = bigf.open('1/ID')[:] - 1   # so that particle id starts from 0
     pos_ = bigf.open('1/Position')[:]
+    vel_ = bigf.open('1/Velocity')[:]
+    
+    # Random sampling if requested
     if downsample_factor is not None:
+        sample_3d = downsample_factor**3
         if sample_3d > pos_.shape[0]:
-            print(f"[WARNING] Requested sample size ({sample_3d}) larger than data size ({pos.shape[0]})")
+            print(f"[WARNING] Requested sample size ({sample_3d}) larger than data size ({pos_.shape[0]})")
             sample_3d = pos_.shape[0]
         
+        # Generate random indices once and use for all arrays
         random_indices = np.random.choice(pos_.shape[0], sample_3d, replace=False)
+        random_indices.sort()  # Sort to maintain some spatial correlation
+        
+        # Apply same sampling to all arrays
         pos_ = pos_[random_indices]
+        vel_ = vel_[random_indices]
+        
+        # Create new sequential IDs for the downsampled grid
+        pid_ = np.arange(sample_3d)
+        
+        # Update Ng for the new grid size
+        Ng = downsample_factor
+        print(f"[INFO] Downsampled to {sample_3d} particles, new grid size: {Ng}")
+
+    # Arrange particles on grid
     pos = np.empty_like(pos_)
     pos[pid_] = pos_
     pos = pos.reshape(Ng, Ng, Ng, 3)
     
-    vel_ = bigf.open('1/Velocity')[:]
     vel = np.empty_like(vel_)
     vel[pid_] = vel_
     vel = vel.reshape(Ng, Ng, Ng, 3)
     del pid_, pos_, vel_
 
+    # Convert to displacement and normalize
     dis = pos2dis(pos, boxsize, Ng)
     del pos
 
@@ -72,9 +89,9 @@ def get_nonlin_fields(inpath, outpath, downsample_factor=None):
     velocity = cosmology.velnorm(vel,z=redshift)
     catnorm = np.concatenate([disp,velocity],axis=0)
     catnorm = catnorm.astype('f4')
-    print ("z=%.1f"%redshift,"catnorm shape:",np.shape(catnorm))
+    print(f"z={redshift:.1f} catnorm shape:", np.shape(catnorm))
     
-    np.save(outpath,catnorm)
+    np.save(outpath, catnorm)
     
 #-------------------------------------------------------------------    
 if __name__ == '__main__':

@@ -96,7 +96,7 @@ def create_positions(hr_data, Lbox=100000, Ng_hr=64):
     print(f'shape of hr_pos after dis2pos: {hr_pos.shape}')
     return hr_pos
 
-def visualize_hr(pos, Lbox=100, Ng_hr=64):
+def visualize_hr(pos, Lbox=100, Ng_hr=64, s=0.8, alpha=0.008):
     pos = pos/1000.0 # Convert to Mpc
     # Check LaTeX availability
     has_latex = check_latex_installed()
@@ -123,16 +123,16 @@ def visualize_hr(pos, Lbox=100, Ng_hr=64):
     
     # Plot with error handling
     try:
-        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=0.8, alpha=0.008)
+        scatter = ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], s=s, alpha=alpha)
     except Exception as e:
         print(f"[ERROR] Failed to create scatter plot: {str(e)}")
         raise
     
     # Add labels and title with conditional formatting
     if has_latex:
-        ax.set_xlabel(r'$X [Mpc]$', fontsize=12)
-        ax.set_ylabel(r'$Y [Mpc]$', fontsize=12)
-        ax.set_zlabel(r'$Z [Mpc]$', fontsize=12)
+        ax.set_xlabel(r'$X [Mpc]$', fontsize=13)
+        ax.set_ylabel(r'$Y [Mpc]$', fontsize=13)
+        ax.set_zlabel(r'$Z [Mpc]$', fontsize=13)
         
         title = r'$\mathrm{HR\ Simulation:\ 3D\ Particle\ Distribution}$' + '\n' + \
                 r'$N_{\mathrm{g,hr}}: ' + f'{Ng_hr}$'
@@ -172,7 +172,7 @@ def main():
     args = parser.parse_args()
 
     hr_pos = create_positions(args.input, 100000, 64)
-    visualize_hr(hr_pos, 100, 64)
+    visualize_hr(hr_pos, 100, 64, s=0.8, alpha=0.08)
 
 if __name__ == "__main__":
     main()
