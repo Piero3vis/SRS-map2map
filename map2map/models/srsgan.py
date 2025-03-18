@@ -94,18 +94,32 @@ class SkipBlock(nn.Module):
         )
 
     def forward(self, x, y):
-        x = self.conv(x)  # narrow by 3
+        # Starting dimensions:
+        # x: (512, 32, 32, 32)  # Features from previous block
+        # y: (6, 32, 32, 32)    # Original input or previous y
 
+        # 1. Process x through conv sequence
+        x = self.conv(x)  # This is the "sneaky" line!
+        # x goes through:
+        #   → AddNoise:  (512, 32, 32, 32)     # Maybe 513 if cat_noise=True
+        #   → Upsample:  (512, 64, 64, 64)     # Doubles spatial dims
+        #   → Conv3d:    (256, 62, 62, 62)     # First 3×3×3 conv
+        #   → AddNoise:  (256, 62, 62, 62)     # Maybe 257 if cat_noise=True
+        #   → Conv3d:    (256, 60, 60, 60)     # Second 3×3×3 conv
+        # Final x: (256, 60, 60, 60)
+
+        # 2. Process y path
         if y is None:
-            y = self.proj(x)
+            y = self.proj(x)  # First block only
         else:
-            y = self.upsample(y)  # narrow by 1
+            y = self.upsample(y)  # (6, 32, 32, 32) → (6, 64, 64, 64)
+            y = narrow_by(y, 2)   # (6, 64, 64, 64) → (6, 60, 60, 60)
+            y = y + self.proj(x)  # Add projected x to y
+            # proj(x): (256, 60, 60, 60) → (6, 60, 60, 60)
+            # Final y: (6, 60, 60, 60)
 
-            y = narrow_by(y, 2)
-
-            y = y + self.proj(x)
-
-        return x, y
+        # 3. Return both processed x and y
+        return x, y  # Both continue to next block
 
 
 class AddNoise(nn.Module):

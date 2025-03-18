@@ -5,19 +5,6 @@
 # 2) freeze earlier layers
 # 3) change the projection layers
 
-# import torch
-# import torch.nn as nn
-# import torch.optim as optim
-# from torch.utils.data import DataLoader, TensorDataset
-# from map2map.models.srsgan import G
-
-
-# # Load the checkpoint
-# checkpoint = torch.load("SRmodel/G_z0.pt", map_location="cpu")
-# pretrained_model = checkpoint['model']
-
-# original_model = G(in_chan=1, out_chan=1, scale_factor=16, chan_base=128, chan_min=64, chan_max=128)
-# original_model.load_state_dict(pretrained_model)
 
 import torch
 import torch.nn as nn
@@ -26,27 +13,26 @@ from map2map.models.srsgan import *
 from math import log2
 
 
-
 # ------------------------------------------------------------------------------
-# Define a modified version that only uses the first block (for a 2× upscale)
+# Define a modified version that uses a specified number of blocks
 class ModifiedG(nn.Module):
-    def __init__(self, original_model):
+    def __init__(self, original_model, num_blocks=1):
+        """
+        Args:
+            original_model: The pretrained model
+            num_blocks: Number of blocks to keep (1 for 2×, 2 for 4×, 3 for 8×)
+        """
         super(ModifiedG, self).__init__()
         # Reuse the initial convolution and activation from the original model
         self.block0 = original_model.block0
         
-        # Instead of using all upscaling blocks, keep only the first block.
-        # This means only one doubling of the spatial resolution (64 -> 128 per dim).
-        self.blocks = nn.ModuleList([original_model.blocks[0]])
+        # Keep specified number of blocks
+        self.blocks = nn.ModuleList(
+            original_model.blocks[:num_blocks]
+        )
         
-        # If needed, you can also modify the projection layer in this block.
-        # For example:
-        # self.blocks[0].proj[0] = nn.Conv3d(
-        #     in_channels=self.blocks[0].proj[0].in_channels,
-        #     out_channels=self.blocks[0].proj[0].out_channels,
-        #     kernel_size=1, stride=1, padding=0
-        # )
-        # (The pretrained weights could be reinitialized or kept as-is.)
+        # Store upsampling factor for reference
+        self.scale_factor = 2 ** num_blocks
 
     def forward(self, x):
         y = x
@@ -56,57 +42,29 @@ class ModifiedG(nn.Module):
         return y
 
 # ------------------------------------------------------------------------------
-# Load the pretrained checkpoint
-# (Your checkpoint contains keys 'epoch' and 'model'; we extract the state_dict.)
+# Load and modify the model
 checkpoint = torch.load("SRmodel/G_z0.pt", map_location="cpu")
 pretrained_state_dict = checkpoint['model']
 
-# Instantiate the original model.
-# Note: Based on your checkpoint state dict (which contains 3 blocks), the original
-# model was likely created with scale_factor=8 (since round(log2(8)) == 3).
+# Original model setup
 in_chan = 6
 out_chan = 6
-scale_factor = 8  # Adjust to match the training configuration of the checkpoint
+scale_factor = 8
 original_model = G(in_chan, out_chan, scale_factor=scale_factor,
-                   chan_base=512, chan_min=64, chan_max=512, cat_noise=False)
+                  chan_base=512, chan_min=64, chan_max=512, cat_noise=False)
 
-# Load the pretrained weights into the original model.
+# Load pretrained weights
 original_model.load_state_dict(pretrained_state_dict)
-print(original_model)
 
-# Create the modified model that only uses the first upscaling block.
-modified_model = ModifiedG(original_model)
-print(modified_model)   
+# Create modified model with desired number of blocks
+num_blocks = 2  # Use 2 blocks for 4× upsampling
+modified_model = ModifiedG(original_model, num_blocks=num_blocks)
+print(f"Modified model will perform {2**num_blocks}× upsampling")
 
-# Optionally, freeze the reused weights to only train new components (if any)
-# for param in modified_model.block0.parameters():
-#     param.requires_grad = False
-# for param in modified_model.blocks.parameters():
-#     for p in param.parameters():
-#         p.requires_grad = False
-
-# Now, modified_model will take an input of shape (6, 64, 64, 64) and produce
-# an output with spatial dimensions 128×128×128 (2× upscale per dim).
-import torch
-
-# Define your epoch number (adjust as needed)
-epoch = 0  # or any other epoch value
-
-# Create a checkpoint dictionary
+# Save the modified model
 checkpoint = {
-    "epoch": epoch,
-    "model": modified_model.state_dict()  # Save the state dict of your modified model
+    "epoch": 0,
+    "model": modified_model.state_dict()
 }
-
-# Save the checkpoint to a .pt file
-torch.save(checkpoint, "SRmodel/G_z0_modified.pt")
-
-print("Checkpoint saved as 'SRmodel/G_z0_modified.pt'")
-
-
-# checkpoint = {
-#     'epoch': modified_model.state_dict['epoch'],
-#     'model': modified_model.state_dict()['model']    
-# }
-# torch.save(checkpoint, 'SRmodel/G_z0_modified.pt')
+torch.save(checkpoint, f"SRmodel/G_z0_modified_{2**num_blocks}x.pt")
 

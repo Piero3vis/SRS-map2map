@@ -68,7 +68,7 @@ def load_hr_data(file_path):
         Ng = header.attrs['TotNumPart'][1] ** (1/3)
         Ng = int(np.rint(Ng))
 
-        cellsize = boxsivisualize_hr.visualize_hr(hr_pos, 100, 64, s=0.8, alpha=0.08)ze / Ng
+        cellsize = boxsize / Ng
 
         pid_ = bigf.open('1/ID')[:] - 1   # so that particle id starts from 0
         pos_ = bigf.open('1/Position')[:]

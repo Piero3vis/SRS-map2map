@@ -58,23 +58,23 @@ def cropfield(field,idx,reps,crop,pad):
         x = x.take(range(i - p0, i + N + p1), axis=1 + d, mode='wrap')
     return x
 
-def sr_field(lr_field,tgt_size):
+def sr_field(lr_field, tgt_size):
     """input *normalized* lr_field in shape of (Nc,Ng,Ng,Ng),
     return unnormalized sr_field trimmed to tgt_size^3
-    """
-    lr_field = np.expand_dims(lr_field, axis=0)
-    lr_field = torch.from_numpy(lr_field).float()
-    lr_field = lr_field.to(device)
-
-    with torch.no_grad():
-        sr_box = model(lr_field)
-
-    sr_box = sr_box.cpu().numpy()
-    sr_disp = cosmology.disnorm(sr_box[0,0:3,],z=redshift,undo=True)
-    sr_disp = narrow_like(sr_disp,tgt_size)
-    sr_vel = cosmology.velnorm(sr_box[0,3:6,],z=redshift,undo=True)
-    sr_vel = narrow_like(sr_vel,tgt_size)
-    return sr_disp,sr_vel
+    """    
+    # Input: (6, Ng, Ng, Ng) normalized field
+    lr_field = np.expand_dims(lr_field, axis=0)  # Add batch dimension
+    # Now: (1, 6, Ng, Ng, Ng)
+    
+    sr_box = model(lr_field)  # Process through generator
+    # Output: (1, 6, Ng*8, Ng*8, Ng*8) approximately
+    
+    # Split into displacement and velocity
+    sr_disp = sr_box[0,0:3,]  # First 3 channels
+    sr_vel = sr_box[0,3:6,]   # Last 3 channels
+    
+    # Unnormalize and trim to target size
+    return sr_disp, sr_vel
     
 ################################ crop the input box, sr operation, and piece back ###########################
 

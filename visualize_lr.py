@@ -187,4 +187,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(f"Downsample Factor: {args.downsample_factor}")
     load_lr_positions(args.inpath)
-    visualize_lr_3d(args.inpath, args.downsample_factor, s=0.8, alpha=0.08)
+    visualize_lr_3d(args.inpath, args.downsample_factor, s=0.8, alpha=0.8)

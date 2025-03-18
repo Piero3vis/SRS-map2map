@@ -136,6 +136,73 @@ Here's an animation showing the super-resolution process from LR to SR:
 
 ![SR-Process](https://github.com/Piero3vis/SRS-map2map/blob/tensor_CPU/SR.gif)
 
+## Network Architectures
+
+### Original Network (8× Upsampling)
+The original model (`G_z0.pt`, `G_z2.pt`) performs 8× upsampling in each dimension:
+- Input: 64³ particles
+- Output: 512³ particles
+- Trained on WMAP9 cosmology
+
+### Modified Networks (2×, 4×, or 8× Upsampling)
+Modified versions using a subset of blocks from the original network:
+- **2× Network**: Uses first block only
+  - Input: 32³ → Output: 64³
+- **4× Network**: Uses first two blocks
+  - Input: 32³ → Output: 128³
+- **8× Network**: Uses first three blocks
+  - Input: 32³ → Output: 256³
+
+To create a modified model:
+```bash
+python generator.py --num-blocks 2  # For 4× upsampling
+# Creates SRmodel/G_z0_modified_4x.pt
+```
+
+### Workflow Examples
+
+Starting point: Simulation in BigFile format (ready for visualization)
+
+#### Using Original 8× Network
+```bash
+# Step 1: Convert simulation to field data
+python preproc.py --inpath path/to/original/sim --outpath path/to/field_processed.npy
+
+# Step 2: Apply super-resolution
+python lr2sr.py --input path/to/field_processed.npy --output path/to/sr_8x
+# Output is in BigFile format, ready for visualization
+```
+
+#### Using 2× Network
+```bash
+# Step 1: Downsample to field data
+python down_sample.py --input path/to/original/sim --output path/to/field --downsample-factor 32
+
+# Step 2.1: Convert to BigFile for visualization and preprocessing
+python field2bigfile.py --input path/to/field.npy --output path/to/bigfile
+
+
+# Step 2.2: Process field data
+python preproc.py --inpath path/to/bigfile --outpath path/to/field_processed.npy
+
+# Step 3: Apply super-resolution with 2× network
+python lr2srx2.py --input path/to/field_processed.npy --output path/to/sr_2x
+# Output is in BigFile format, ready for visualization
+```
+
+For visualization at any stage:
+```bash
+# Original simulation
+python visualize_hr.py --input path/to/original/sim
+
+# Downsampled data (if converted to BigFile)
+python visualize_lr.py --input path/to/bigfile
+
+# Super-resolved results
+python visualize_sr.py --input path/to/sr_2x  # For 2× network
+
+```
+
 
 
 
