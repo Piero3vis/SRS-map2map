@@ -8,6 +8,8 @@ from bigfile import File
 import argparse
 import os, sys
 from map2map.norms import cosmology
+import readsnap_mod as rs
+import glob
 
 def pos2dis(pos, boxsize, Ng):
     """Assume `pos` is ordered in `pid` that aligns with the Lagrangian lattice,
@@ -62,6 +64,65 @@ def get_nonlin_fields(inpath, outpath):
     vel = np.moveaxis(vel,-1,0)
     
     disp = cosmology.disnorm(dis,z=redshift)
+    velocity = cosmolocellsize = boxsize / Ngtenate([disp,velocity],axis=0)
+    catnorm = catnorm.astype('f4')
+    print ("z=%.1f"%redshift,"catnorm shape:",np.shape(catnorm))
+    
+    np.save(outpath,catnorm)
+
+def get_params(inpath):
+    random_snap = inpath + '.0'
+    header = rs.snapshot_header(random_snap)
+    boxsize = header.boxsize
+    redshift = header.redshift
+    
+
+    return boxsize, redshift
+
+
+
+def get_snapshot_nonlin_fields(inpath, outpath):
+    """
+    inpath is LR simulation snapshot in snapshot format (from MP-Gadget)
+    outpath is numpy array in shape (Nc,Ng,Ng,Ng)
+    """
+    header = rs.snapshot_header(inpath+'.0')
+    boxsize = header.boxsize
+    redshift = header.redshift
+
+    
+    Ng = header.attrshead.npart[1] ** (1/3)
+    Ng = int(np.rint(Ng))
+
+    cellsize = boxsize / Ng
+    # get parameters
+    print(f'boxsize, redshift: {boxsize}, {redshift}')
+    part_type=1
+
+    # get positions and velocities
+    pos_ = rs.read_block(inpath,"POS ",parttype=part_type,verbose=True)
+    vel_ = rs.read_block(inpath,"VEL ",parttype=part_type,verbose=True)
+    pid_ = rs.read_block(inpath,"ID ",parttype=part_type,verbose=True)- 1
+    print(f'shape of pos_: {np.shape(pos_)}')
+    pos = np.empty_like(pos_)
+    pos[pid_] = pos_
+    pos = pos.reshape(Ng, Ng, Ng, 3)
+ 
+    vel = np.empty_like(vel_)
+    vel[pid_] = vel_
+    vel = vel.reshape(Ng, Ng, Ng, 3)
+    del pid_, pos_, vel_
+
+    dis = pos2dis(pos, boxsize, Ng)
+    del pos
+
+    dis = dis.astype('f4')
+    vel = vel.astype('f4')
+    
+    dis = np.moveaxis(dis,-1,0)
+    vel = np.moveaxis(vel,-1,0)
+    
+    disp = cosmology.disnorm(dis,z=redshift)
     velocity = cosmology.velnorm(vel,z=redshift)
     catnorm = np.concatenate([disp,velocity],axis=0)
     catnorm = catnorm.astype('f4')
@@ -78,8 +139,8 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    get_nonlin_fields(args.inpath, args.outpath)
-    
+    #get_nonlin_fields(args.inpath, args.outpath)
+    get_snapshot_nonlin_fields(args.inpath, args.outpath)
     
     
     

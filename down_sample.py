@@ -8,6 +8,7 @@ from bigfile import File
 import argparse
 import os, sys
 from map2map.norms import cosmology
+import readsnap_mod as rs
 
 def pos2dis(pos, boxsize, Ng):
     """Assume `pos` is ordered in `pid` that aligns with the Lagrangian lattice,
@@ -25,23 +26,34 @@ def pos2dis(pos, boxsize, Ng):
     return pos
 
 
-def get_nonlin_fields(inpath, outpath, downsample_factor=None):
+def down_sample_snapshot_nonlin_fields(inpath, outpath, downsample_factor=None):
     """
-    inpath is LR simulation snapshot in bigfile format (from MP-Gadget)
+    inpath is LR simulation snapshot in Gadget format
     outpath is numpy array in shape (Nc,Ng,Ng,Ng)
-    """
-    bigf = File(inpath)
-    header = bigf.open('Header')
-    boxsize = header.attrs['BoxSize'][0]
-    redshift = 1./header.attrs['Time'][0] - 1
     
-    Ng = header.attrs['TotNumPart'][1] ** (1/3)
-    Ng = int(np.rint(Ng))
+    Parameters:
+    -----------
+    inpath : str
+        Path to the input snapshot (without file number)
+    outpath : str
+        Path to save the output
+    downsample_factor : int, optional
+        New grid size after downsampling (e.g., downsample_factor=512 for a 512³ grid)
+    """
+    header = rs.snapshot_header(inpath+'.0')
+    boxsize = header.boxsize
+    redshift = header.redshift
+    
+    Ng = int(np.round(header.npart[1] ** (1/3)))
+    print(f'Original grid size: {Ng}')
+    print(f'Boxsize, redshift: {boxsize}, {redshift}')
+    
+    part_type = 1
 
-    # Load all data first
-    pid_ = bigf.open('1/ID')[:] - 1   # so that particle id starts from 0
-    pos_ = bigf.open('1/Position')[:]
-    vel_ = bigf.open('1/Velocity')[:]
+    
+    pos_ = rs.read_block(inpath, "POS ", parttype=part_type, verbose=True)
+    vel_ = rs.read_block(inpath, "VEL ", parttype=part_type, verbose=True)
+    pid_ = rs.read_block(inpath, "ID  ", parttype=part_type, verbose=True) - 1
     
     # Random sampling if requested
     if downsample_factor is not None:
@@ -50,11 +62,11 @@ def get_nonlin_fields(inpath, outpath, downsample_factor=None):
             print(f"[WARNING] Requested sample size ({sample_3d}) larger than data size ({pos_.shape[0]})")
             sample_3d = pos_.shape[0]
         
-        # Generate random indices once and use for all arrays
-        random_indices = np.random.choice(pos_.shape[0], sample_3d, replace=False)
-        random_indices.sort()  # Sort to maintain some spatial correlation
         
-        # Apply same sampling to all arrays
+        random_indices = np.random.choice(pos_.shape[0], sample_3d, replace=False)
+        random_indices.sort()  
+        
+        
         pos_ = pos_[random_indices]
         vel_ = vel_[random_indices]
         
@@ -65,6 +77,8 @@ def get_nonlin_fields(inpath, outpath, downsample_factor=None):
         Ng = downsample_factor
         print(f"[INFO] Downsampled to {sample_3d} particles, new grid size: {Ng}")
 
+    print(f'Shape of pos_: {np.shape(pos_)}')
+    
     # Arrange particles on grid
     pos = np.empty_like(pos_)
     pos[pid_] = pos_
@@ -75,7 +89,7 @@ def get_nonlin_fields(inpath, outpath, downsample_factor=None):
     vel = vel.reshape(Ng, Ng, Ng, 3)
     del pid_, pos_, vel_
 
-    # Convert to displacement and normalize
+    
     dis = pos2dis(pos, boxsize, Ng)
     del pos
 
@@ -92,7 +106,7 @@ def get_nonlin_fields(inpath, outpath, downsample_factor=None):
     print(f"z={redshift:.1f} catnorm shape:", np.shape(catnorm))
     
     np.save(outpath, catnorm)
-    
+
 #-------------------------------------------------------------------    
 if __name__ == '__main__':
     
@@ -100,11 +114,14 @@ if __name__ == '__main__':
     parser.add_argument('--inpath',required=True,type=str,help='path of the LR input snapshot')
     parser.add_argument('--outpath',required=True,type=str,help='path of the output')
     parser.add_argument('--downsample-factor',required=False, default=None,type=int,help='downsample factor')
+    parser.add_argument('--snapshot-format',required=False,action='store_true',help='read data in Gadget snapshot format instead of BigFile')
+    
     args = parser.parse_args()
     
-    get_nonlin_fields(args.inpath, args.outpath, args.downsample_factor)
-    
-    
+    if args.snapshot_format:
+        down_sample_snapshot_nonlin_fields(args.inpath, args.outpath, args.downsample_factor)
+    else:
+        down_sample_snapshot_nonlin_fields(args.inpath, args.outpath, args.downsample_factor)
     
     
     

@@ -110,16 +110,15 @@ class SkipBlock(nn.Module):
 
         # 2. Process y path
         if y is None:
-            y = self.proj(x)  # First block only
+            y = self.proj(x)
         else:
-            y = self.upsample(y)  # (6, 32, 32, 32) → (6, 64, 64, 64)
-            y = narrow_by(y, 2)   # (6, 64, 64, 64) → (6, 60, 60, 60)
-            y = y + self.proj(x)  # Add projected x to y
-            # proj(x): (256, 60, 60, 60) → (6, 60, 60, 60)
-            # Final y: (6, 60, 60, 60)
+            y = self.upsample(y)  # narrow by 1
 
-        # 3. Return both processed x and y
-        return x, y  # Both continue to next block
+            y = narrow_by(y, 2)
+
+            y = y + self.proj(x)
+
+        return x, y
 
 
 class AddNoise(nn.Module):
